@@ -111,14 +111,14 @@ namespace MongoDB.Web.Providers
             ApplicationName = config["applicationName"] ?? HostingEnvironment.ApplicationVirtualPath;
 
             mongoCollection = new MongoClient(config["connectionString"] ?? "mongodb://localhost").GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "Profiles");
-            mongoCollection.EnsureIndex("ApplicationName");
-            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous");
-            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "LastActivityDate");
-            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "LastActivityDate", "Username");
-            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "Username");
-            mongoCollection.EnsureIndex("ApplicationName", "LastActivityDate");
-            mongoCollection.EnsureIndex("ApplicationName", "Username");
-            mongoCollection.EnsureIndex("ApplicationName", "Username", "IsAnonymous");
+            mongoCollection.CreateIndex("ApplicationName");
+            mongoCollection.CreateIndex("ApplicationName", "IsAnonymous");
+            mongoCollection.CreateIndex("ApplicationName", "IsAnonymous", "LastActivityDate");
+            mongoCollection.CreateIndex("ApplicationName", "IsAnonymous", "LastActivityDate", "Username");
+            mongoCollection.CreateIndex("ApplicationName", "IsAnonymous", "Username");
+            mongoCollection.CreateIndex("ApplicationName", "LastActivityDate");
+            mongoCollection.CreateIndex("ApplicationName", "Username");
+            mongoCollection.CreateIndex("ApplicationName", "Username", "IsAnonymous");
 
             base.Initialize(name, config);
         }
