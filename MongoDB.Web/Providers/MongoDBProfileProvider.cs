@@ -110,7 +110,26 @@ namespace MongoDB.Web.Providers
         {
             ApplicationName = config["applicationName"] ?? HostingEnvironment.ApplicationVirtualPath;
 
-            mongoCollection = new MongoClient(config["connectionString"] ?? "mongodb://localhost").GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "Profiles");
+            var connString = config["connectionString"];
+            var connStringName = config["connectionStringName"];
+            if ((connString != null) && (connStringName != null))
+            {
+                throw new ConfigurationErrorsException("Both parmeters connectionString and connectionStringName can not be specified");
+            }
+            if (connString == null)
+            {
+                if (connStringName == null)
+                {
+                    throw new ConfigurationErrorsException("Either connectionString or connectionStringName parameter must be specified");
+                }
+                var settings = ConfigurationManager.ConnectionStrings[connStringName];
+                if (settings == null)
+                {
+                    throw new ConfigurationErrorsException(string.Format("Connection string {0} not found", connStringName));
+                }
+                connString = settings.ConnectionString;
+            }
+            mongoCollection = new MongoClient(connString).GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "Profiles");
             mongoCollection.CreateIndex("ApplicationName");
             mongoCollection.CreateIndex("ApplicationName", "IsAnonymous");
             mongoCollection.CreateIndex("ApplicationName", "IsAnonymous", "LastActivityDate");
