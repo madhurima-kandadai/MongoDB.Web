@@ -85,19 +85,29 @@ namespace MongoDB.Web.Providers
             var query = Query.And(Query.EQ("ApplicationName", ApplicationName), Query.EQ("Username", username));
             var bsonDocument = mongoCollection.FindOneAs<BsonDocument>(query);
 
+            if (bsonDocument == null)
+            {
+                return settingsPropertyValueCollection;
+            }
+
             foreach (SettingsProperty settingsProperty in collection)
             {
                 var settingsPropertyValue = new SettingsPropertyValue(settingsProperty);
                 settingsPropertyValueCollection.Add(settingsPropertyValue);
 
-                var value = BsonTypeMapper.MapToDotNetValue(bsonDocument[settingsPropertyValue.Name]);
-
-                if (value != null)
+                if (!bsonDocument.Contains(settingsPropertyValue.Name))
                 {
-                    settingsPropertyValue.PropertyValue = value;
-                    settingsPropertyValue.IsDirty = false;
-                    settingsPropertyValue.Deserialized = true;
+                    continue;
                 }
+
+                var value = BsonTypeMapper.MapToDotNetValue(bsonDocument[settingsPropertyValue.Name]);
+                if (value == null)
+                {
+                    continue;
+                }
+                settingsPropertyValue.PropertyValue = value;
+                settingsPropertyValue.IsDirty = false;
+                settingsPropertyValue.Deserialized = true;
             }
 
             var update = Update.Set("LastActivityDate", DateTime.Now);
