@@ -19,58 +19,58 @@ namespace MongoDB.Web.Providers
 
         public override int DeleteInactiveProfiles(ProfileAuthenticationOption authenticationOption, DateTime userInactiveSinceDate)
         {
-            var query = Query.And(Query.EQ("ApplicationName", this.ApplicationName), Query.LTE("LastActivityDate", userInactiveSinceDate));
+            var query = Query.And(Query.EQ("ApplicationName", ApplicationName), Query.LTE("LastActivityDate", userInactiveSinceDate));
 
             if (authenticationOption != ProfileAuthenticationOption.All)
             {
                 query = Query.And(query, Query.EQ("IsAnonymous", authenticationOption == ProfileAuthenticationOption.Anonymous));
             }
 
-            return (int)this.mongoCollection.Remove(query).DocumentsAffected;
+            return (int)mongoCollection.Remove(query).DocumentsAffected;
         }
 
         public override int DeleteProfiles(string[] usernames)
         {
-            var query = Query.And(Query.EQ("ApplicationName", this.ApplicationName), Query.In("Username", new BsonArray(usernames)));
-            return (int)this.mongoCollection.Remove(query).DocumentsAffected;
+            var query = Query.And(Query.EQ("ApplicationName", ApplicationName), Query.In("Username", new BsonArray(usernames)));
+            return (int)mongoCollection.Remove(query).DocumentsAffected;
         }
 
         public override int DeleteProfiles(ProfileInfoCollection profiles)
         {
-            return this.DeleteProfiles(profiles.Cast<ProfileInfo>().Select(profile => profile.UserName).ToArray());
+            return DeleteProfiles(profiles.Cast<ProfileInfo>().Select(profile => profile.UserName).ToArray());
         }
 
         public override ProfileInfoCollection FindInactiveProfilesByUserName(ProfileAuthenticationOption authenticationOption, string usernameToMatch, DateTime userInactiveSinceDate, int pageIndex, int pageSize, out int totalRecords)
         {
-            return this.GetProfiles(authenticationOption, usernameToMatch, userInactiveSinceDate, pageIndex, pageSize, out totalRecords);
+            return GetProfiles(authenticationOption, usernameToMatch, userInactiveSinceDate, pageIndex, pageSize, out totalRecords);
         }
 
         public override ProfileInfoCollection FindProfilesByUserName(ProfileAuthenticationOption authenticationOption, string usernameToMatch, int pageIndex, int pageSize, out int totalRecords)
         {
-            return this.GetProfiles(authenticationOption, usernameToMatch, null, pageIndex, pageSize, out totalRecords);
+            return GetProfiles(authenticationOption, usernameToMatch, null, pageIndex, pageSize, out totalRecords);
         }
 
         public override ProfileInfoCollection GetAllInactiveProfiles(ProfileAuthenticationOption authenticationOption, DateTime userInactiveSinceDate, int pageIndex, int pageSize, out int totalRecords)
         {
-            return this.GetProfiles(authenticationOption, null, userInactiveSinceDate, pageIndex, pageSize, out totalRecords);
+            return GetProfiles(authenticationOption, null, userInactiveSinceDate, pageIndex, pageSize, out totalRecords);
         }
 
         public override ProfileInfoCollection GetAllProfiles(ProfileAuthenticationOption authenticationOption, int pageIndex, int pageSize, out int totalRecords)
         {
-            return this.GetProfiles(authenticationOption, null, null, pageIndex, pageSize, out totalRecords);
+            return GetProfiles(authenticationOption, null, null, pageIndex, pageSize, out totalRecords);
         }
 
         public override int GetNumberOfInactiveProfiles(ProfileAuthenticationOption authenticationOption, DateTime userInactiveSinceDate)
         {
-            var query = this.GetQuery(authenticationOption, null, userInactiveSinceDate);
-            return (int)this.mongoCollection.Count(query);
+            var query = GetQuery(authenticationOption, null, userInactiveSinceDate);
+            return (int)mongoCollection.Count(query);
         }
 
         public override SettingsPropertyValueCollection GetPropertyValues(SettingsContext context, SettingsPropertyCollection collection)
         {
             var settingsPropertyValueCollection = new SettingsPropertyValueCollection();
 
-            if (context == null || collection == null || collection.Count < 1)
+            if (collection.Count < 1)
             {
                 return settingsPropertyValueCollection;
             }
@@ -82,8 +82,8 @@ namespace MongoDB.Web.Providers
                 return settingsPropertyValueCollection;
             }
 
-            var query = Query.And(Query.EQ("ApplicationName", this.ApplicationName), Query.EQ("Username", username));
-            var bsonDocument = this.mongoCollection.FindOneAs<BsonDocument>(query);
+            var query = Query.And(Query.EQ("ApplicationName", ApplicationName), Query.EQ("Username", username));
+            var bsonDocument = mongoCollection.FindOneAs<BsonDocument>(query);
 
             foreach (SettingsProperty settingsProperty in collection)
             {
@@ -101,24 +101,24 @@ namespace MongoDB.Web.Providers
             }
 
             var update = Update.Set("LastActivityDate", DateTime.Now);
-            this.mongoCollection.Update(query, update);
+            mongoCollection.Update(query, update);
 
             return settingsPropertyValueCollection;
         }
 
         public override void Initialize(string name, NameValueCollection config)
         {
-            this.ApplicationName = config["applicationName"] ?? HostingEnvironment.ApplicationVirtualPath;
+            ApplicationName = config["applicationName"] ?? HostingEnvironment.ApplicationVirtualPath;
 
-            this.mongoCollection = new MongoClient(config["connectionString"] ?? "mongodb://localhost").GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "Profiles");
-            this.mongoCollection.EnsureIndex("ApplicationName");
-            this.mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous");
-            this.mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "LastActivityDate");
-            this.mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "LastActivityDate", "Username");
-            this.mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "Username");
-            this.mongoCollection.EnsureIndex("ApplicationName", "LastActivityDate");
-            this.mongoCollection.EnsureIndex("ApplicationName", "Username");
-            this.mongoCollection.EnsureIndex("ApplicationName", "Username", "IsAnonymous");
+            mongoCollection = new MongoClient(config["connectionString"] ?? "mongodb://localhost").GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "Profiles");
+            mongoCollection.EnsureIndex("ApplicationName");
+            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous");
+            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "LastActivityDate");
+            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "LastActivityDate", "Username");
+            mongoCollection.EnsureIndex("ApplicationName", "IsAnonymous", "Username");
+            mongoCollection.EnsureIndex("ApplicationName", "LastActivityDate");
+            mongoCollection.EnsureIndex("ApplicationName", "Username");
+            mongoCollection.EnsureIndex("ApplicationName", "Username", "IsAnonymous");
 
             base.Initialize(name, config);
         }
@@ -150,14 +150,14 @@ namespace MongoDB.Web.Providers
                 values.Add(settingsPropertyValue.Name, settingsPropertyValue.PropertyValue);
             }
 
-            var query = Query.And(Query.EQ("ApplicationName", this.ApplicationName), Query.EQ("Username", username));
-            var bsonDocument = this.mongoCollection.FindOneAs<BsonDocument>(query);
+            var query = Query.And(Query.EQ("ApplicationName", ApplicationName), Query.EQ("Username", username));
+            var bsonDocument = mongoCollection.FindOneAs<BsonDocument>(query);
 
             if (bsonDocument == null)
             {
                 bsonDocument = new BsonDocument
                 {
-                    { "ApplicationName", this.ApplicationName },
+                    { "ApplicationName", ApplicationName },
                     { "Username", username }
                 };
             }
@@ -171,7 +171,7 @@ namespace MongoDB.Web.Providers
             mergeDocument.AddRange(values as IDictionary<string, object>);
             bsonDocument.Merge(mergeDocument);
 
-            this.mongoCollection.Save(bsonDocument);
+            mongoCollection.Save(bsonDocument);
         }
 
         #region Private Methods
@@ -183,13 +183,13 @@ namespace MongoDB.Web.Providers
 
         private ProfileInfoCollection GetProfiles(ProfileAuthenticationOption authenticationOption, string usernameToMatch, DateTime? userInactiveSinceDate, int pageIndex, int pageSize, out int totalRecords)
         {
-            var query = this.GetQuery(authenticationOption, usernameToMatch, userInactiveSinceDate);
+            var query = GetQuery(authenticationOption, usernameToMatch, userInactiveSinceDate);
 
-            totalRecords = (int)this.mongoCollection.Count(query);
+            totalRecords = (int)mongoCollection.Count(query);
 
             var profileInfoCollection = new ProfileInfoCollection();
 
-            foreach (var bsonDocument in this.mongoCollection.FindAs<BsonDocument>(query).SetSkip(pageIndex * pageSize).SetLimit(pageSize))
+            foreach (var bsonDocument in mongoCollection.FindAs<BsonDocument>(query).SetSkip(pageIndex * pageSize).SetLimit(pageSize))
             {
                 profileInfoCollection.Add(ToProfileInfo(bsonDocument));
             }
@@ -199,7 +199,7 @@ namespace MongoDB.Web.Providers
 
         private IMongoQuery GetQuery(ProfileAuthenticationOption authenticationOption, string usernameToMatch, DateTime? userInactiveSinceDate)
         {
-            var query = Query.EQ("ApplicationName", this.ApplicationName);
+            var query = Query.EQ("ApplicationName", ApplicationName);
 
             if (authenticationOption != ProfileAuthenticationOption.All)
             {
