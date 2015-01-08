@@ -34,24 +34,27 @@ namespace MongoDB.Web.Providers
 
         public static WebEvent FromWebBaseEvent(WebBaseEvent webBaseEvent)
         {
-            var webEvent = new WebEvent();
+          var webEvent = new WebEvent
+          {
+            ApplicationPath = HostingEnvironment.ApplicationPhysicalPath,
+            ApplicationVirtualPath = HostingEnvironment.ApplicationVirtualPath,
+            Details = webBaseEvent.ToString(),
+            EventCode = webBaseEvent.EventCode,
+            EventDetailCode = webBaseEvent.EventDetailCode,
+            EventID = webBaseEvent.EventID,
+            EventOccurrence = webBaseEvent.EventOccurrence,
+            EventSequence = webBaseEvent.EventSequence,
+            EventTime = webBaseEvent.EventTime,
+            EventTimeUtc = webBaseEvent.EventTimeUtc,
+            EventType = webBaseEvent.GetType().Name,
+            Message = webBaseEvent.Message
+          };
 
-            webEvent.ApplicationPath = HostingEnvironment.ApplicationPhysicalPath;
-            webEvent.ApplicationVirtualPath = HostingEnvironment.ApplicationVirtualPath;
-            webEvent.Details = webBaseEvent.ToString();
-            webEvent.EventCode = webBaseEvent.EventCode;
-            webEvent.EventDetailCode = webBaseEvent.EventDetailCode;
-            webEvent.EventID = webBaseEvent.EventID;
-            webEvent.EventOccurrence = webBaseEvent.EventOccurrence;
-            webEvent.EventSequence = webBaseEvent.EventSequence;
-            webEvent.EventTime = webBaseEvent.EventTime;
-            webEvent.EventTimeUtc = webBaseEvent.EventTimeUtc;
-            webEvent.EventType = webBaseEvent.GetType().Name;
-            webEvent.Message = webBaseEvent.Message;
 
-            if (webBaseEvent is WebBaseErrorEvent)
+          var baseErrorEvent = webBaseEvent as WebBaseErrorEvent;
+          if (baseErrorEvent != null)
             {
-                webEvent.ExceptionType = ((WebBaseErrorEvent)webBaseEvent).ErrorException.GetType().Name;
+                webEvent.ExceptionType = baseErrorEvent.ErrorException.GetType().Name;
             }
 
             return webEvent;

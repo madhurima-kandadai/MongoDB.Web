@@ -10,17 +10,17 @@ namespace MongoDB.Web.Providers
 {
     public class MongoDBOutputCacheProvider : System.Web.Caching.OutputCacheProvider
     {
-        private MongoCollection mongoCollection;
+        private MongoCollection _mongoCollection;
 
         public override object Add(string key, object entry, DateTime utcExpiry)
         {
-            this.Set(key, entry, utcExpiry);
+            Set(key, entry, utcExpiry);
             return entry;
         }
 
         public override object Get(string key)
         {
-            var bsonDocument = this.mongoCollection.FindOneAs<BsonDocument>(Query.EQ("Key", key));
+            var bsonDocument = _mongoCollection.FindOneAs<BsonDocument>(Query.EQ("Key", key));
 
             if (bsonDocument == null)
             {
@@ -29,7 +29,7 @@ namespace MongoDB.Web.Providers
 
             if (bsonDocument["Expiration"].ToUniversalTime() <= DateTime.UtcNow)
             {
-                this.Remove(key);
+                Remove(key);
                 return null;
             }
 
@@ -41,14 +41,14 @@ namespace MongoDB.Web.Providers
 
         public override void Initialize(string name, NameValueCollection config)
         {
-            this.mongoCollection = new MongoClient(config["connectionString"] ?? "mongodb://localhost").GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "OutputCache");
-            this.mongoCollection.EnsureIndex("Key");
+            _mongoCollection = new MongoClient(config["connectionString"] ?? "mongodb://localhost").GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "OutputCache");
+            _mongoCollection.CreateIndex("Key");
             base.Initialize(name, config);
         }
 
         public override void Remove(string key)
         {
-            this.mongoCollection.Remove(Query.EQ("Key", key));
+            _mongoCollection.Remove(Query.EQ("Key", key));
         }
 
         public override void Set(string key, object entry, DateTime utcExpiry)
@@ -64,7 +64,7 @@ namespace MongoDB.Web.Providers
                     { "Value", memoryStream.ToArray() }
                 };
 
-                this.mongoCollection.Insert(bsonDocument);
+                _mongoCollection.Insert(bsonDocument);
             }
         }
     }

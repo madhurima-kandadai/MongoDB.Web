@@ -17,8 +17,8 @@ namespace MongoDB.Web.Providers
   /// </summary>
   public class MongoDBSessionStateProvider : SessionStateStoreProviderBase
   {
-    private MongoCollection _mongoCollection;
-    private SessionStateSection _sessionStateSection;
+    protected MongoCollection MongoCollection;
+    protected SessionStateSection SessionStateSection;
 
     /// <summary>
     /// Creates a new <see cref="T:System.Web.SessionState.SessionStateStoreData" /> object to be used for the current request.
@@ -42,13 +42,13 @@ namespace MongoDB.Web.Providers
       var memoryStream = new MemoryStream();
 
       var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id));
-      _mongoCollection.Remove(query);
+      MongoCollection.Remove(query);
 
       var bsonDocument = new BsonDocument
         {
           { "applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath },
           { "created", DateTime.Now },
-          { "expires", DateTime.Now.AddMinutes(1400) },
+          { "expires", DateTime.Now.AddMinutes(timeout) },
           { "id", id },
           { "lockDate", DateTime.Now },
           { "locked", false },
@@ -56,10 +56,10 @@ namespace MongoDB.Web.Providers
           { "sessionStateActions", SessionStateActions.None },
           { "sessionStateItems", memoryStream.ToArray() },
           { "sessionStateItemsCount", 0 },
-          { "timeout", 20 }
+          { "timeout", timeout }
         };
 
-      _mongoCollection.Insert(bsonDocument);
+      MongoCollection.Insert(bsonDocument);
     }
 
     /// <summary>
@@ -121,7 +121,7 @@ namespace MongoDB.Web.Providers
     public override void Initialize(string name, NameValueCollection config)
     {
       var configuration = WebConfigurationManager.OpenWebConfiguration(HostingEnvironment.ApplicationVirtualPath);
-      _sessionStateSection = configuration.GetSection("system.web/sessionState") as SessionStateSection;
+      SessionStateSection = configuration.GetSection("system.web/sessionState") as SessionStateSection;
 
       var connString = config["connectionString"];
       var connStringName = config["connectionStringName"];
@@ -146,9 +146,9 @@ namespace MongoDB.Web.Providers
         connString = settings.ConnectionString;
       }
 
-      _mongoCollection = new MongoClient(connString).GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "SessionState");
-      _mongoCollection.CreateIndex("applicationVirtualPath", "id");
-      _mongoCollection.CreateIndex("applicationVirtualPath", "id", "lockId");
+      MongoCollection = new MongoClient(connString).GetServer().GetDatabase(config["database"] ?? "ASPNETDB").GetCollection(config["collection"] ?? "SessionState");
+      MongoCollection.CreateIndex("applicationVirtualPath", "id");
+      MongoCollection.CreateIndex("applicationVirtualPath", "id", "lockId");
 
       base.Initialize(name, config);
     }
@@ -169,9 +169,15 @@ namespace MongoDB.Web.Providers
     /// <param name="lockId">The lock identifier for the current request.</param>
     public override void ReleaseItemExclusive(HttpContext context, string id, object lockId)
     {
-      var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id), Query.EQ("lockId", lockId.ToString()));
-      var update = Update.Set("expires", DateTime.Now.Add(_sessionStateSection.Timeout)).Set("locked", false);
-      _mongoCollection.Update(query, update);
+      var query = Query.And(
+        Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), 
+        Query.EQ("id", id), 
+        Query.EQ("lockId", (int)lockId));
+
+      var update = Update.Set("expires", DateTime.Now.Add(SessionStateSection.Timeout))
+        .Set("locked", false);
+
+      MongoCollection.Update(query, update);
     }
 
     /// <summary>
@@ -183,8 +189,8 @@ namespace MongoDB.Web.Providers
     /// <param name="item">The <see cref="T:System.Web.SessionState.SessionStateStoreData" /> that represents the item to delete from the data store.</param>
     public override void RemoveItem(HttpContext context, string id, object lockId, SessionStateStoreData item)
     {
-      var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id), Query.EQ("lockId", lockId.ToString()));
-      _mongoCollection.Remove(query);
+      var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id), Query.EQ("lockId", (int)lockId));
+      MongoCollection.Remove(query);
     }
 
     /// <summary>
@@ -195,8 +201,8 @@ namespace MongoDB.Web.Providers
     public override void ResetItemTimeout(HttpContext context, string id)
     {
       var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id));
-      var update = Update.Set("expires", DateTime.Now.Add(_sessionStateSection.Timeout));
-      _mongoCollection.Update(query, update);
+      var update = Update.Set("expires", DateTime.Now.Add(SessionStateSection.Timeout));
+      MongoCollection.Update(query, update);
     }
 
     /// <summary>
@@ -218,7 +224,7 @@ namespace MongoDB.Web.Providers
         if (newItem)
         {
           var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id));
-          _mongoCollection.Remove(query);
+          MongoCollection.Remove(query);
 
           var bsonDocument = new BsonDocument
                     {
@@ -235,13 +241,20 @@ namespace MongoDB.Web.Providers
                         { "timeout", item.Timeout }
                     };
 
-          _mongoCollection.Insert(bsonDocument);
+          MongoCollection.Insert(bsonDocument);
         }
         else
         {
-          var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id), Query.EQ("lockId", lockId.ToString()));
-          var upate = Update.Set("expires", DateTime.Now.Add(_sessionStateSection.Timeout)).Set("items", memoryStream.ToArray()).Set("locked", false).Set("sessionStateItemsCount", item.Items.Count);
-          _mongoCollection.Update(query, upate);
+          var query = Query.And(
+            Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), 
+            Query.EQ("id", id), 
+            Query.EQ("lockId", (int)lockId));
+
+          var upate = Update.Set("expires", DateTime.Now.Add(SessionStateSection.Timeout))
+            .Set("sessionStateItems", memoryStream.ToArray())
+            .Set("locked", false)
+            .Set("sessionStateItemsCount", item.Items.Count);
+          MongoCollection.Update(query, upate);
         }
       }
     }
@@ -275,17 +288,24 @@ namespace MongoDB.Web.Providers
       lockAge = TimeSpan.Zero;
       lockId = 0;
 
-      var query = Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id));
-      var bsonDocument = _mongoCollection.FindOneAs<BsonDocument>(query);
+      var query = Query.And(
+        Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), 
+        Query.EQ("id", id));
+
+      var bsonDocument = MongoCollection.FindOneAs<BsonDocument>(query);
 
       if (bsonDocument == null)
       {
         locked = false;
       }
-      else if (bsonDocument["expires"].ToUniversalTime() <= DateTime.Now)
+      else if (bsonDocument["expires"].ToUniversalTime() <= DateTime.UtcNow)
       {
         locked = false;
-        _mongoCollection.Remove(Query.And(Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), Query.EQ("id", id)));
+        MongoCollection.Remove(Query.And(
+          Query.EQ("applicationVirtualPath", HostingEnvironment.ApplicationVirtualPath), 
+          Query.EQ("id", id)));
+
+        bsonDocument = null;
       }
       else if (bsonDocument["locked"].AsBoolean)
       {
@@ -305,13 +325,16 @@ namespace MongoDB.Web.Providers
         lockId = (int)lockId + 1;
         actions = SessionStateActions.None;
 
-        var update = Update.Set("lockDate", DateTime.Now).Set("lockId", (int)lockId).Set("locked", true).Set("sessionStateActions", SessionStateActions.None);
-        _mongoCollection.Update(query, update);
+        var update = Update.Set("lockDate", DateTime.Now)
+          .Set("lockId", (int)lockId)
+          .Set("locked", true)
+          .Set("sessionStateActions", SessionStateActions.None);
+        MongoCollection.Update(query, update);
       }
 
       if (actions == SessionStateActions.InitializeItem)
       {
-        return CreateNewStoreData(context, _sessionStateSection.Timeout.Minutes);
+        return CreateNewStoreData(context, SessionStateSection.Timeout.Minutes);
       }
 
       if (bsonDocument != null)

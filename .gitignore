@@ -3,3 +3,4 @@
 [Oo]bj/
 StyleCop.Cache
 packages/*
+/MongoDB.Web.sln.GhostDoc.xml
