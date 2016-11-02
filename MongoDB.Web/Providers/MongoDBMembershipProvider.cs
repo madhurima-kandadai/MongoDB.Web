@@ -112,7 +112,7 @@ namespace MongoDB.Web.Providers
             }
 
             var update = Update.Set("PasswordQuestion", newPasswordQuestion).Set("PasswordAnswer", this.EncodePassword(newPasswordAnswer, this.PasswordFormat, bsonDocument["Salt"].AsString));
-            return this.mongoCollection.Update(query, update).Ok;
+            return this.mongoCollection.Update(query, update).UpdatedExisting;
         }
 
         public override MembershipUser CreateUser(string username, string password, string email, string passwordQuestion, string passwordAnswer, bool isApproved, object providerUserKey, out MembershipCreateStatus status)
@@ -388,7 +388,7 @@ namespace MongoDB.Web.Providers
         {
             var query = Query.And(Query.EQ("ApplicationName", this.ApplicationName), Query.EQ("LoweredUsername", username.ToLowerInvariant()));
             var update = Update.Set("FailedPasswordAttemptCount", 0).Set("FailedPasswordAttemptWindowStart", new DateTime(1970, 1, 1)).Set("FailedPasswordAnswerAttemptCount", 0).Set("FailedPasswordAnswerAttemptWindowStart", new DateTime(1970, 1, 1)).Set("IsLockedOut", false).Set("LastLockoutDate", new DateTime(1970, 1, 1));
-            return this.mongoCollection.Update(query, update).Ok;
+            return this.mongoCollection.Update(query, update).UpdatedExisting;
         }
 
         public override void UpdateUser(MembershipUser user)
